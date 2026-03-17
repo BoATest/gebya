@@ -566,17 +566,31 @@ function AppInner() {
               )}
               <button
                 onClick={toggleLang}
-                className="text-xs font-bold px-3 rounded-full border transition-all flex items-center justify-center"
+                className="text-xs font-bold rounded-full border transition-all flex items-center overflow-hidden"
                 style={{
                   borderColor: 'rgba(255,255,255,0.4)',
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.12)',
                   minHeight: '44px',
-                  minWidth: '52px',
                 }}
                 aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
               >
-                {lang === 'en' ? 'አማ' : 'EN'}
+                <span
+                  className="px-2.5 py-2 flex items-center justify-center"
+                  style={{
+                    background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
+                    color: lang === 'en' ? '#7c3d12' : 'rgba(255,255,255,0.6)',
+                    fontWeight: lang === 'en' ? 800 : 600,
+                    minWidth: '32px',
+                  }}
+                >EN</span>
+                <span
+                  className="px-2.5 py-2 flex items-center justify-center"
+                  style={{
+                    background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
+                    color: lang === 'am' ? '#7c3d12' : 'rgba(255,255,255,0.6)',
+                    fontWeight: lang === 'am' ? 800 : 600,
+                    minWidth: '32px',
+                  }}
+                >አማ</span>
               </button>
             </div>
             <p className="text-xs font-semibold text-white">{getCurrentEthiopianDate()}</p>

@@ -31,9 +31,19 @@ function SettingsPage({
   const [cleared, setCleared] = useState(false);
 
   const [editName, setEditName] = useState(shopProfile?.name || '');
-  const [editPhone, setEditPhone] = useState(shopProfile?.phone || '');
+  const [editPhoneDigits, setEditPhoneDigits] = useState(() => {
+    const raw = shopProfile?.phone || '';
+    return raw.startsWith('+251') ? raw.slice(4) : raw.replace(/\D/g, '').slice(-9);
+  });
   const [editTelegram, setEditTelegram] = useState(shopProfile?.telegram || '');
   const [profileSaved, setProfileSaved] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  const phoneValid = /^[79]\d{8}$/.test(editPhoneDigits);
+  const handlePhoneChange = (e) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (raw.length <= 9) setEditPhoneDigits(raw);
+  };
 
   const [providers, setProviders] = useState(enabledProviders || { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] });
 
@@ -44,8 +54,9 @@ function SettingsPage({
   const [showReForm, setShowReForm] = useState(false);
 
   const handleProfileSave = async () => {
-    if (!editName.trim()) return;
-    await onProfileSave(editName.trim(), editPhone.trim(), editTelegram.trim());
+    if (!editName.trim() || !phoneValid) return;
+    const fullPhone = '+251' + editPhoneDigits;
+    await onProfileSave(editName.trim(), fullPhone, editTelegram.trim());
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
   };
@@ -127,9 +138,10 @@ function SettingsPage({
 
   const totalEntries = transactions.length;
   const totalCredits = creditRecords.length;
+  const currentFullPhone = '+251' + editPhoneDigits;
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
-    editPhone.trim() !== (shopProfile?.phone || '') ||
+    currentFullPhone !== (shopProfile?.phone || '') ||
     editTelegram.trim() !== (shopProfile?.telegram || '')
   );
 
@@ -180,30 +192,46 @@ function SettingsPage({
           <div className="px-5 pt-5 pb-4 space-y-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
-                <Store className="w-3.5 h-3.5" /> {t.shopName}
+                <Store className="w-3.5 h-3.5" /> {t.userName} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
-                placeholder="e.g. Tigist's Store"
+                placeholder={t.onboardNamePlaceholder || 'e.g. Tigist'}
                 className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
                 style={{ borderColor: editName.trim() ? '#c47c1a' : '#e8d5b0' }}
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5" /> {t.phoneNumber}
+                <Phone className="w-3.5 h-3.5" /> {t.phoneNumber} <span className="text-red-500">*</span>
               </label>
-              <input
-                type="tel"
-                inputMode="tel"
-                value={editPhone}
-                onChange={e => setEditPhone(e.target.value)}
-                placeholder="e.g. 0912345678 (optional)"
-                className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                style={{ borderColor: '#e8d5b0' }}
-              />
+              <div className="flex gap-0">
+                <div
+                  className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold"
+                  style={{ background: '#f5f0e8', borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : '#e8d5b0', color: '#7c3d12', minWidth: '64px' }}
+                >
+                  +251
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={editPhoneDigits}
+                  onChange={handlePhoneChange}
+                  onBlur={() => setPhoneTouched(true)}
+                  placeholder="9XXXXXXXX"
+                  maxLength={9}
+                  className="flex-1 px-4 py-3 border-2 rounded-r-xl text-sm focus:outline-none"
+                  style={{ borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : (phoneValid ? '#c47c1a' : '#e8d5b0') }}
+                />
+              </div>
+              {phoneTouched && !phoneValid && editPhoneDigits.length > 0 && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneInvalid}</p>
+              )}
+              {phoneTouched && editPhoneDigits.length === 0 && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneRequired}</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
@@ -220,11 +248,11 @@ function SettingsPage({
             </div>
             <button
               onClick={handleProfileSave}
-              disabled={!editName.trim() || (!profileChanged && !profileSaved)}
+              disabled={!editName.trim() || !phoneValid || (!profileChanged && !profileSaved)}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
               style={{
-                background: profileSaved ? '#15803d' : (editName.trim() && profileChanged ? '#c47c1a' : '#e5e7eb'),
-                color: (editName.trim() && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
+                background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && profileChanged ? '#c47c1a' : '#e5e7eb'),
+                color: (editName.trim() && phoneValid && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
               }}
             >
               {profileSaved ? <><Check className="w-4 h-4" /> {t.saved}</> : t.saveChanges}
