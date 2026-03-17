@@ -1,7 +1,14 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
+
+// NOTE FOR NATIVE-SPEAKER REVIEW:
+// All strings in the AM (Amharic) object below were machine-translated.
+// Before public launch, every Amharic string should be reviewed and corrected
+// by a native Amharic speaker, especially financial/business terms.
+// Strings particularly needing review are marked with: // ⚠️ REVIEW
 
 const EN = {
   appName: 'ገበያ',
+  loading: 'Loading your notebook…',
   today: 'Today',
   todayLabel: 'ዛሬ',
   credit: 'Credit',
@@ -16,10 +23,13 @@ const EN = {
   iSpentLabel: 'ወጪ',
   creditBtn: 'Credit',
   creditBtnLabel: 'ብድር',
+  calc: 'Calc',
   todaysEntries: "Today's Entries",
   noEntries: 'No entries yet. Use the buttons above to start!',
   profit: 'profit',
   edited: 'edited',
+  editEntry: 'Edit entry',
+  deleteEntryLabel: 'Delete entry',
   calculator: 'Profit Calculator',
   calcCost: 'Cost Price',
   calcSell: 'Selling Price',
@@ -30,12 +40,19 @@ const EN = {
   weekTrend: '7-Day Trend',
   shareReport: 'Share Report',
   shareReportBtn: 'Share Today',
+  shareTitle: 'Share Daily Report',
+  shareDailyReport: 'Daily Report',
+  shareTopItems: 'Top Items Sold',
+  shareSentVia: 'Sent via ገበያ (Gebya)',
+  shareViaDevice: 'Share via Device',
+  openTelegram: 'Open in Telegram',
+  copyText: 'Copy Text',
   usageInsights: 'Usage Insights',
   dayStreak: 'day streak',
   best: 'best',
   daysActive: 'days active',
   since: 'since',
-  totalEntries: 'Total entries recorded',
+  totalEntries: 'entries',
   sessions: 'sessions opened',
   shareMyStats: 'Share My Stats 📤',
   copiedToClipboard: 'Copied to clipboard!',
@@ -69,7 +86,7 @@ const EN = {
   privacyNote: 'Your data never leaves this device. No account needed.',
   worksOffline: 'Works offline · Data stays on your phone · Free',
   achievementBadges: 'Achievement Badges',
-  badgesEarned: 'Earned badges',
+  badgesEarned: 'earned',
   noBadges: 'Complete milestones to earn badges!',
   clearConfirm: 'Clear all data?',
   clearConfirmMsg: 'This will permanently delete all {count} entries and {credits} credit records. This cannot be undone.',
@@ -90,12 +107,13 @@ const EN = {
 
 const AM = {
   appName: 'ገበያ',
+  loading: 'ማስታወሻ እየጫነ…', // ⚠️ REVIEW
   today: 'ዛሬ',
   todayLabel: 'ዛሬ',
   credit: 'ብድር',
   creditLabel: 'ብድር',
-  report: 'ሪፖርት',
-  settings: 'ቅንብሮች',
+  report: 'ሪፖርት', // ⚠️ REVIEW
+  settings: 'ቅንብሮች', // ⚠️ REVIEW
   sales: 'ሽያጭ',
   spent: 'ወጪ',
   iSold: 'ሸጠሁ',
@@ -104,41 +122,51 @@ const AM = {
   iSpentLabel: 'ወጪ',
   creditBtn: 'ብድር',
   creditBtnLabel: 'ብድር',
+  calc: 'ሒሳብ', // ⚠️ REVIEW
   todaysEntries: 'የዛሬ ግቤቶች',
   noEntries: 'እስካሁን ምንም ግቤት የለም። ለመጀመር ከላይ ያሉትን ቁልፎች ይጠቀሙ!',
   profit: 'ትርፍ',
   edited: 'ተስተካክሏል',
-  calculator: 'የትርፍ ካልኩሌተር',
-  calcCost: 'የዋጋ ቅናሽ',
+  editEntry: 'ግቤት አስተካክል', // ⚠️ REVIEW
+  deleteEntryLabel: 'ግቤት ሰርዝ', // ⚠️ REVIEW
+  calculator: 'የትርፍ ካልኩሌተር', // ⚠️ REVIEW
+  calcCost: 'የዋጋ ቅናሽ', // ⚠️ REVIEW
   calcSell: 'የሽያጭ ዋጋ',
   calcProfit: 'ትርፍ',
-  calcMargin: 'ትርፍ (%)',
+  calcMargin: 'ትርፍ (%)', // ⚠️ REVIEW
   calcPlaceholder: 'መጠን ያስገቡ…',
   topProducts: 'ዛሬ ምርጥ ሽያጭ',
-  weekTrend: 'የ7 ቀን አዝማሚያ',
+  weekTrend: 'የ7 ቀን አዝማሚያ', // ⚠️ REVIEW
   shareReport: 'ሪፖርት አጋራ',
   shareReportBtn: 'ዛሬን አጋራ',
+  shareTitle: 'ዕለታዊ ሪፖርት አጋራ', // ⚠️ REVIEW
+  shareDailyReport: 'ዕለታዊ ሪፖርት',
+  shareTopItems: 'ምርጥ ሽያጭ', // ⚠️ REVIEW
+  shareSentVia: 'በ ገበያ (Gebya) ተልኳል',
+  shareViaDevice: 'በስልክ አጋራ', // ⚠️ REVIEW
+  openTelegram: 'ቴሌግራም ክፈት', // ⚠️ REVIEW
+  copyText: 'ጽሑፍ ቅዳ', // ⚠️ REVIEW
   usageInsights: 'የአጠቃቀም ዝርዝር',
-  dayStreak: 'ቀን ተከታታይ',
+  dayStreak: 'ቀን ተከታታይ', // ⚠️ REVIEW
   best: 'ምርጥ',
   daysActive: 'ንቁ ቀናት',
   since: 'ጀምሮ',
-  totalEntries: 'ጠቅላላ ግቤቶች',
-  sessions: 'ክፍለ ጊዜ ተከፍቷል',
-  shareMyStats: 'ስታቲስቲክሴን አጋራ 📤',
+  totalEntries: 'ግቤቶች',
+  sessions: 'ክፍለ ጊዜ', // ⚠️ REVIEW
+  shareMyStats: 'ስታቲስቲክሴን አጋራ 📤', // ⚠️ REVIEW
   copiedToClipboard: 'ተቀድቷል!',
   shopProfile: 'የሱቅ መገለጫ',
   shopName: 'የሱቅ ስም',
   phoneNumber: 'ስልክ ቁጥር',
-  telegramLabel: 'ቴሌግራም / ግንኙነት',
+  telegramLabel: 'ቴሌግራም / ግንኙነት', // ⚠️ REVIEW
   telegramPlaceholder: '@username ወይም ስልክ',
   saveChanges: 'ለውጦችን አስቀምጥ',
   saved: 'ተቀምጧል!',
-  privacy: 'ግላዊነት',
+  privacy: 'ግላዊነት', // ⚠️ REVIEW
   hideAmounts: 'ቁጥሮችን ደብቅ',
   totalsHidden: 'ጠቅላላዎቹ ተደብቀዋል — ለማሳየት ተጭኑ',
   totalsVisible: 'ጠቅላላዎቹ ይታያሉ — ለመደበቅ ተጭኑ',
-  paymentMethods: 'የክፍያ ዘዴዎች',
+  paymentMethods: 'የክፍያ ዘዴዎች', // ⚠️ REVIEW
   banks: 'ባንኮች',
   mobileWallets: 'ሞባይል ዋሌት',
   onlyEnabled: 'የነቁ ዘዴዎች ብቻ በቅጹ ውስጥ ይታያሉ',
@@ -147,17 +175,17 @@ const AM = {
   addRecurring: 'ተደጋጋሚ ወጪ አክል',
   cancel: 'ሰርዝ',
   add: 'አክል',
-  yourData: 'ያንዎ ውሂብ',
-  storedOnDevice: 'በዚህ ሳምሰንግ/ስልክ ላይ ተቀምጧል',
-  exportCSV: 'CSV ወደ ውጭ ላክ',
+  yourData: 'ያንዎ ውሂብ', // ⚠️ REVIEW
+  storedOnDevice: 'በዚህ ስልክ ላይ ተቀምጧል',
+  exportCSV: 'CSV ወደ ውጭ ላክ', // ⚠️ REVIEW
   exportHint: 'ሰነድ ምትኬ ያውርዱ',
   clearAll: 'ሁሉንም ውሂብ አጥፋ',
   clearHint: 'ሁሉም ነገር ሙሉ በሙሉ ይሰረዛል — መጀመሪያ ይልኩ!',
   about: 'ስለ ፕሮግራሙ',
   privacyNote: 'ውሂቡ ከዚህ ስልክ አይወጣም። ምዝገባ አያስፈልግም።',
   worksOffline: 'ያለ ኢንተርኔት ይሰራል · ውሂቡ በስልክዎ ላይ ይቆያል · ነፃ',
-  achievementBadges: 'የስኬት ባጆች',
-  badgesEarned: 'የተገኙ ባጆች',
+  achievementBadges: 'የስኬት ባጆች', // ⚠️ REVIEW
+  badgesEarned: 'ተገኝቷል', // ⚠️ REVIEW
   noBadges: 'ባጆች ለማግኘት ኢላማዎቹን ያሟሉ!',
   clearConfirm: 'ሁሉንም ውሂብ አጥፋ?',
   clearConfirmMsg: 'ይህ ሁሉን {count} ግቤቶችና {credits} የብድር መዝገቦችን ሙሉ በሙሉ ይሰርዛል። ሊቀለበስ አይችልም።',
@@ -166,7 +194,7 @@ const AM = {
   reloading: 'እንደገና እየጫነ…',
   deleteEntry: 'ይህን ግቤት ትሰርዛለህ?',
   delete: 'ሰርዝ',
-  newBestDay: '🏆 አዲስ ምርጥ ቀን!',
+  newBestDay: '🏆 አዲስ ምርጥ ቀን!', // ⚠️ REVIEW
   birr: 'ብር',
   daily: 'ዕለታዊ',
   weekly: 'ሳምንታዊ',

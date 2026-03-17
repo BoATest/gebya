@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Calculator, Share2 } from 'lucide-react';
+import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Calculator, Share2, X } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
@@ -27,6 +27,83 @@ const P = {
   border: '#f0e6d4',
 };
 
+function ShareModal({ summary, telegram, onClose, t }) {
+  const handle = telegram?.startsWith('@') ? telegram.slice(1) : telegram;
+  const encoded = encodeURIComponent(summary);
+
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: t.shareDailyReport, text: summary }); } catch { /* dismissed */ }
+    }
+  };
+
+  const handleTelegram = () => {
+    window.open(`https://t.me/${handle}?text=${encoded}`, '_blank');
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summary);
+      fireToast('📋 ' + t.copiedToClipboard, 2500);
+      onClose();
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-end justify-center z-50"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-t-3xl w-full max-w-md shadow-2xl pb-safe">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-amber-50">
+          <h2 className="text-base font-black text-gray-800">📤 {t.shareTitle}</h2>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px]"
+            style={{ background: '#f5f5f5' }}
+            aria-label={t.cancel}
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-2">
+          <div
+            className="rounded-2xl px-4 py-3 text-xs text-gray-500 font-mono whitespace-pre-wrap"
+            style={{ background: '#faf5eb', border: '1px solid #f0e6d4', maxHeight: '140px', overflowY: 'auto', fontSize: '0.7rem', lineHeight: 1.5 }}
+          >
+            {summary}
+          </div>
+          {typeof navigator !== 'undefined' && navigator.share && (
+            <button
+              onClick={handleNativeShare}
+              className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
+              style={{ background: '#c47c1a', color: '#fff' }}
+            >
+              <Share2 className="w-4 h-4" /> {t.shareViaDevice}
+            </button>
+          )}
+          {handle && (
+            <button
+              onClick={handleTelegram}
+              className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
+              style={{ background: '#2481cc', color: '#fff' }}
+            >
+              ✈️ {t.openTelegram}
+            </button>
+          )}
+          <button
+            onClick={handleCopy}
+            className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
+            style={{ background: '#f5f5f5', color: '#374151' }}
+          >
+            📋 {t.copyText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
@@ -47,6 +124,8 @@ function AppInner() {
   });
   const [usageStats, setUsageStats] = useState(null);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareText, setShareText] = useState('');
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [bestDayTotal, setBestDayTotal] = useState(0);
 
@@ -156,13 +235,15 @@ function AppInner() {
         await db.analytics.put({ key: 'best_day_fired_date', value: todayStr });
         setBestDayTotal(todayTotal);
         fireToast(`${t.newBestDay} ${fmt(todayTotal)} ${t.birr}`, 3000);
-        setUsageStats(prev => prev ? { ...prev, bestDayTotal: todayTotal } : prev);
-        const bdStats = { ...(usageStats || {}), bestDayTotal: todayTotal };
-        const badges = await checkAndAwardBadges(bdStats, lang);
-        setEarnedBadges(badges);
+        setUsageStats(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, bestDayTotal: todayTotal };
+          checkAndAwardBadges(updated, lang).then(setEarnedBadges);
+          return updated;
+        });
       }
     } catch { /* non-critical */ }
-  }, [t, lang, usageStats]);
+  }, [t, lang]);
 
   const handleAddTransaction = async (transaction) => {
     try {
@@ -388,6 +469,7 @@ function AppInner() {
   })();
 
   const sparklineData = (() => {
+    const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat];
     const days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -396,59 +478,36 @@ function AppInner() {
       const total = transactions
         .filter(t2 => new Date(t2.created_at).toDateString() === ds && t2.type === 'sale')
         .reduce((s, t2) => s + (t2.amount || 0), 0);
-      const dayIndex = d.getDay();
-      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const dayLabelsAm = ['እሁድ', 'ሰኞ', 'ማክሰ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ'];
-      days.push({
-        label: lang === 'am' ? dayLabelsAm[dayIndex] : dayLabels[dayIndex],
-        total,
-        isToday: i === 0,
-      });
+      days.push({ label: dayLabels[d.getDay()], total, isToday: i === 0 });
     }
     return days;
   })();
 
   const sparklineMax = Math.max(...sparklineData.map(d => d.total), 1);
 
-  const handleShareReport = async () => {
+  const buildShareSummary = () => {
     const profit = todaySalesTotal - todayExpensesTotal;
     const topStr = topProducts.length > 0
       ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
       : '  —';
-    const summary = [
-      `📊 ${shopProfile?.name || 'Shop'} — Daily Report`,
+    return [
+      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
       `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       ``,
-      `💰 Sales:    ${fmt(todaySalesTotal)} birr`,
-      `🛒 Expenses: ${fmt(todayExpensesTotal)} birr`,
-      `📈 Profit:   ${fmt(profit)} birr`,
+      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
+      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
+      `📈 ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
       ``,
-      `🏆 Top Items Sold:`,
+      `🏆 ${t.shareTopItems}:`,
       topStr,
       ``,
-      `Sent via ገበያ (Gebya)`,
+      t.shareSentVia,
     ].join('\n');
+  };
 
-    const telegram = shopProfile?.telegram?.trim();
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${shopProfile?.name || 'Shop'} Report`, text: summary });
-        return;
-      } catch { /* fall through */ }
-    }
-
-    if (telegram) {
-      const encoded = encodeURIComponent(summary);
-      const handle = telegram.startsWith('@') ? telegram.slice(1) : telegram;
-      window.open(`https://t.me/${handle}?text=${encoded}`, '_blank');
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(summary);
-      fireToast('📋 ' + t.copiedToClipboard, 2500);
-    } catch { /* ignore */ }
+  const handleShareReport = () => {
+    setShareText(buildShareSummary());
+    setShowShareModal(true);
   };
 
   const hid = (n) => hidden ? '••••' : fmt(n);
@@ -459,7 +518,7 @@ function AppInner() {
         <div className="text-center">
           <div className="text-5xl mb-3">📒</div>
           <h1 className="text-2xl font-black" style={{ color: P.header }}>ገበያ</h1>
-          <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>Loading your notebook…</p>
+          <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>{t.loading}</p>
         </div>
       </div>
     );
@@ -491,7 +550,7 @@ function AppInner() {
         <div className="flex items-start justify-between mb-3 gap-2">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-black text-white tracking-tight">ገበያ</h1>
-            <p className="text-sm font-black text-white truncate" style={{ fontSize: '0.95rem' }}>
+            <p className="font-black text-white truncate" style={{ fontSize: '0.95rem' }}>
               {shopProfile.name}
             </p>
           </div>
@@ -499,16 +558,23 @@ function AppInner() {
             <div className="flex items-center gap-2">
               {usageStats?.streak > 0 && (
                 <span
-                  className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}
+                  className="text-xs font-bold px-2 py-1 rounded-full"
+                  style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', minHeight: '28px', display: 'flex', alignItems: 'center' }}
                 >
                   🔥 {usageStats.streak}d
                 </span>
               )}
               <button
                 onClick={toggleLang}
-                className="text-xs font-bold px-2 py-1 rounded-full border transition-all min-h-[28px]"
-                style={{ borderColor: 'rgba(255,255,255,0.4)', color: '#fff', background: 'rgba(255,255,255,0.12)' }}
+                className="text-xs font-bold px-3 rounded-full border transition-all flex items-center justify-center"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.4)',
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.12)',
+                  minHeight: '44px',
+                  minWidth: '52px',
+                }}
+                aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
               >
                 {lang === 'en' ? 'አማ' : 'EN'}
               </button>
@@ -535,6 +601,38 @@ function AppInner() {
         )}
       </header>
 
+      {activeTab === 'today' && usageStats && (
+        <div className="px-4 pt-3 pb-0 flex-shrink-0" style={{ background: P.header }}>
+          <div className="rounded-2xl px-4 py-2.5 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.13)' }}>
+            <div className="text-center flex-shrink-0">
+              <div className="text-base font-black text-white">🔥 {usageStats.streak}</div>
+              <div className="text-xs text-white opacity-75">{t.dayStreak}</div>
+            </div>
+            <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.3)' }} />
+            <div className="text-center flex-shrink-0">
+              <div className="text-base font-black text-white">📅 {usageStats.daysActive?.length || 1}</div>
+              <div className="text-xs text-white opacity-75">{t.daysActive}</div>
+            </div>
+            <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.3)' }} />
+            <div className="text-center flex-1 min-w-0">
+              <div className="text-sm font-black text-white">
+                {(usageStats.featureCounts?.sales || 0) + (usageStats.featureCounts?.expenses || 0)}
+              </div>
+              <div className="text-xs text-white opacity-75 truncate">{t.totalEntries}</div>
+            </div>
+            <button
+              onClick={handleShareReport}
+              className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 rounded-xl min-h-[44px] min-w-[44px] justify-center"
+              style={{ background: 'rgba(255,255,255,0.18)' }}
+              aria-label={t.shareReport}
+            >
+              <Share2 className="w-4 h-4 text-white" />
+              <span className="text-white font-bold" style={{ fontSize: '0.6rem' }}>{t.shareReportBtn}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'today' && (
         <div className="px-3 py-3 flex gap-2 flex-shrink-0" style={{ background: P.actionBar }}>
           {[
@@ -543,7 +641,7 @@ function AppInner() {
             { type: 'credit',  label: t.creditBtnLabel, sub: t.creditBtn,  bg: '#92400e', shadow: '#431407' },
           ].map(b => (
             <button key={b.type} onClick={() => setShowForm(b.type)}
-              className="flex-1 py-3 rounded-2xl text-center active:opacity-80 transition-all"
+              className="flex-1 py-3 rounded-2xl text-center active:opacity-80 transition-all min-h-[64px]"
               style={{ background: b.bg, boxShadow: `0 4px 0 ${b.shadow}` }}>
               <div className="font-black text-white text-lg leading-none">+</div>
               <div className="font-bold text-white text-sm">{b.label}</div>
@@ -552,47 +650,13 @@ function AppInner() {
           ))}
           <button
             onClick={() => setShowCalculator(true)}
-            className="py-3 px-3 rounded-2xl text-center active:opacity-80 transition-all flex flex-col items-center justify-center gap-0.5"
-            style={{ background: '#7c5c20', boxShadow: '0 4px 0 #5a3f10', minWidth: '48px' }}
+            className="py-3 px-3 rounded-2xl text-center active:opacity-80 transition-all flex flex-col items-center justify-center gap-0.5 min-h-[64px]"
+            style={{ background: '#7c5c20', boxShadow: '0 4px 0 #5a3f10', minWidth: '52px' }}
             aria-label={t.calculator}
           >
             <Calculator className="w-5 h-5 text-white" />
-            <span className="text-white text-xs opacity-80" style={{ fontSize: '0.6rem' }}>Calc</span>
+            <span className="text-white font-bold" style={{ fontSize: '0.6rem' }}>{t.calc}</span>
           </button>
-        </div>
-      )}
-
-      {activeTab === 'today' && usageStats && (
-        <div className="px-4 pt-3 pb-0">
-          <div className="rounded-2xl px-4 py-2.5 flex items-center gap-4" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
-            <div className="text-center flex-shrink-0">
-              <div className="text-lg font-black" style={{ color: '#c2410c' }}>🔥 {usageStats.streak}</div>
-              <div className="text-xs text-gray-500">{t.dayStreak}</div>
-            </div>
-            <div className="w-px h-8" style={{ background: '#fed7aa' }} />
-            <div className="text-center flex-shrink-0">
-              <div className="text-lg font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
-              <div className="text-xs text-gray-500">{t.daysActive}</div>
-            </div>
-            <div className="w-px h-8" style={{ background: '#fed7aa' }} />
-            <div className="text-center flex-1 min-w-0">
-              <div className="text-sm font-black text-gray-700">
-                {(usageStats.featureCounts?.sales || 0) + (usageStats.featureCounts?.expenses || 0)} <span className="text-xs font-normal text-gray-500">{t.totalEntries}</span>
-              </div>
-              <div className="text-xs text-gray-400 truncate">
-                {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '—'}
-              </div>
-            </div>
-            <button
-              onClick={handleShareReport}
-              className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl min-h-[44px] min-w-[44px] justify-center"
-              style={{ background: '#c47c1a' }}
-              aria-label={t.shareReport}
-            >
-              <Share2 className="w-4 h-4 text-white" />
-              <span className="text-white text-xs font-bold" style={{ fontSize: '0.6rem' }}>Share</span>
-            </button>
-          </div>
         </div>
       )}
 
@@ -696,17 +760,17 @@ function AppInner() {
                       <div className="flex gap-1 flex-shrink-0">
                         <button
                           onClick={() => setEditTarget(tx)}
-                          className="p-2 rounded-xl min-w-[40px] min-h-[44px] flex items-center justify-center"
-                          style={{ background: '#fffbeb' }}
-                          aria-label="Edit entry"
+                          className="p-2 rounded-xl flex items-center justify-center"
+                          style={{ background: '#fffbeb', minWidth: '44px', minHeight: '44px' }}
+                          aria-label={t.editEntry}
                         >
                           <Pencil className="w-3.5 h-3.5" style={{ color: '#c47c1a' }} />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(tx)}
-                          className="p-2 rounded-xl min-w-[40px] min-h-[44px] flex items-center justify-center"
-                          style={{ background: '#fff1f2' }}
-                          aria-label="Delete entry"
+                          className="p-2 rounded-xl flex items-center justify-center"
+                          style={{ background: '#fff1f2', minWidth: '44px', minHeight: '44px' }}
+                          aria-label={t.deleteEntryLabel}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
@@ -811,6 +875,15 @@ function AppInner() {
 
       {showCalculator && (
         <ProfitCalculatorModal onClose={() => setShowCalculator(false)} />
+      )}
+
+      {showShareModal && (
+        <ShareModal
+          summary={shareText}
+          telegram={shopProfile?.telegram}
+          onClose={() => setShowShareModal(false)}
+          t={t}
+        />
       )}
 
       {deleteTarget && (
