@@ -28,7 +28,8 @@ const P = {
 };
 
 function ShareModal({ summary, telegram, onClose, t }) {
-  const handle = telegram?.startsWith('@') ? telegram.slice(1) : telegram;
+  const isUsername = telegram?.startsWith('@') && telegram.length > 1;
+  const handle = isUsername ? telegram.slice(1) : null;
   const encoded = encodeURIComponent(summary);
 
   const handleNativeShare = async () => {
@@ -82,7 +83,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
               <Share2 className="w-4 h-4" /> {t.shareViaDevice}
             </button>
           )}
-          {handle && (
+          {isUsername && handle && (
             <button
               onClick={handleTelegram}
               className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
@@ -556,14 +557,12 @@ function AppInner() {
           </div>
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
             <div className="flex items-center gap-2">
-              {usageStats?.streak > 0 && (
-                <span
-                  className="text-xs font-bold px-2 py-1 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', minHeight: '28px', display: 'flex', alignItems: 'center' }}
-                >
-                  🔥 {usageStats.streak}d
-                </span>
-              )}
+              <span
+                className="text-xs font-bold px-2 py-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', minHeight: '28px', display: 'flex', alignItems: 'center' }}
+              >
+                🔥 {usageStats?.streak || 0}d
+              </span>
               <button
                 onClick={toggleLang}
                 className="text-xs font-bold rounded-full border transition-all flex items-center overflow-hidden"

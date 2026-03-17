@@ -1,5 +1,12 @@
 import { createContext, useContext, useState } from 'react';
 
+// ⚠️ NATIVE-SPEAKER VERIFICATION REQUIRED
+// All Amharic (AM) strings below were machine-translated and have NOT been
+// reviewed by a native Amharic speaker. Before public launch, every string in
+// the AM object must be verified and corrected by a native speaker — especially
+// financial/business terminology, verb forms, and formal/informal register.
+// Do NOT ship to production without completing this review.
+
 const EN = {
   appName: 'ገበያ',
   loading: 'Loading your notebook…',
