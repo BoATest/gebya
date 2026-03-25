@@ -4,31 +4,13 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
+
 // Vercel deploy fix - 2026-03-25
-import { defineConfig } from 'vite'
-// ... rest of file
+// ✅ Use default for Vercel builds (static site doesn't need real port)
+const port = Number(process.env.PORT) || 3000;
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+// ✅ Use default for Vercel builds
+const basePath = process.env.BASE_PATH || "/";
 
 export default defineConfig({
   base: basePath,
